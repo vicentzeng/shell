@@ -1,0 +1,7 @@
+#!/bin/bash
+adb root
+cd $(pwd)
+adb remount
+adb shell ls /data/misc/camera/|grep .nv12
+adb pull /sdcard/DCIM/Camera/ ./
+adb shell rm /sdcard/DCIM/Camera/*
