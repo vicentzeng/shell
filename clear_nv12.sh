@@ -2,8 +2,8 @@
 adb root
 cd $(pwd)
 mkdir ./nv12
-rm -r ./nv12/*.nv12
-rm -r ./nv12/*.yuv
+rm -r ./nv12/pic/*.nv12
+rm -r ./nv12/pic/*.yuv
 rm -r ./nv12/*.pnm
 
 adb remount
