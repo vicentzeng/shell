@@ -49,10 +49,14 @@ Update_Pid_info(){
 
 
 restartAsusCamera(){
+	#save log
+	storeLog
+
 	if [ $is_restart_camera = 1 ]; then
 		am force-stop com.asus.camera
 		LOG "Restart(am force-stop) AsusCamera"
 		$ReInitModeCall
+		sleep 2
 		IsAsusCamera_Run_Preview_ForeHead
 		if [ $? = 1 ]; then
 			LOG "Restart fail kill all daemon, mediaserver && AsusCamera"
@@ -111,7 +115,7 @@ MemInfo(){
 		media_pid=${ps_str:10:5}
 		media_pid=${media_pid/" "/""}
 		media_pid=${media_pid/" "/""}
-		echo "media_pid$media_pid"
+		LOG "media_pid$media_pid"
 		echo "$(date +%c)">>/sdcard/media_maps/camera_maps_$1$i.log
 		echo "$(date +%c)">>/sdcard/media_maps/camera_smaps_$1$i.log
 		cat /proc/$media_pid/maps>>/sdcard/media_maps/camera_maps_$1$i.log
@@ -119,6 +123,11 @@ MemInfo(){
 	fi
 	}
 
+CPU_info_monitor(){
+	max_freq_path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+	cur_freq_path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
+	LOG "CPU max_freq:$(cat $max_freq_path) cur_freq:$(cat $cur_freq_path)"
+}
 
 Check_Capture_Suc_Clear(){
 	#check is capturing,连续拍照失败5次，则重新打开AsusCamera App
@@ -129,22 +138,15 @@ Check_Capture_Suc_Clear(){
 		IsAsusCamera_Run_Preview_ForeHead
 		if [ $? = 0 ]; then
 			let capture_fail_num+=1;
-				LOG "/********Capture Miss	happened $capture_fail_num次  *******/"
+				LOG "/********Capture Miss	happened $capture_fail_num次 *******/"
 				if [ $capture_fail_num -eq 3 ]; then
-					#save log
-					errlogdir=$(date "+%Y-%m-%d--%H%M%S")
-					#mkdir /sdcard/camera_sh_log/$errlogdir
-					#echo "mkdir errlogdir:$errlogdir"
-					#echo "mkdir errlogdir:$errlogdir">>/sdcard/camera_sh.log
-					#cp /data/logcat_log/logcat.txt /sdcard/camera_sh_log/$errlogdir/
-					#cp /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/$errlogdir/
-
 					#restart?
 					restartAsusCamera
 					capture_fail_num=0;
 				fi
 				sleep 1
 		else
+			LOG "/********CameraApp unexpected goto Background *******/"
 			restartAsusCamera
 		fi
 		ret=1
@@ -167,6 +169,26 @@ Check_Capture_Suc_Clear(){
 	return $ret
 }
 
+storeLog(){
+	tombstone_num=$(ls /data/tombstones/ | wc -l)
+	if [ $tombstone_num -gt 0 ]; then
+		let tombstone_times+=1
+		LOG "Backtrace detected! Coping tombstone&logcat to /sdcard/camera_sh_log/tombstone$tombstone_times"
+		mkdir -p /sdcard/camera_sh_log/tombstone$tombstone_times
+		mkdir -p /sdcard/camera_sh_log/tombstone$tombstone_times/tombstone
+		mkdir -p /sdcard/camera_sh_log/tombstone$tombstone_times/logcat
+		mv /data/tombstones/* /sdcard/camera_sh_log/tombstone$tombstone_times/tombstone/
+		mv /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
+		mv /data/logcat_log/logcat.txt /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
+	else
+		let commone_fail_times+=1
+		LOG "Common fail detected! Coping logcat to /sdcard/camera_sh_log/logcat$commone_fail_times"
+		mkdir -p /sdcard/camera_sh_log/logcat$commone_fail_times
+		mv /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/logcat$commone_fail_times
+		mv /data/logcat_log/logcat.txt /sdcard/camera_sh_log/logcat$commone_fail_times
+	fi
+}
+
 common_init(){
 LOG "Aging Begin"
 mkdir -p /sdcard/media_maps
@@ -182,6 +204,10 @@ ReInitModeCall="am start com.asus.camera/.CameraApp"
 camera_app_pid=0
 camera_app_oom_score=0
 camera_app_utime=0
+
+#record
+commone_fail_times=0
+tombstone_times=$(ls /data/tombstones/ | wc -l);
 #config
 is_dump_mediaserver_ps_info=0
 is_dump_mediaserver_maps=0

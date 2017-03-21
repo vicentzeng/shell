@@ -1,0 +1,11 @@
+
+1.push Aging8953.sh cam_common_inc.sh cam_common_inc_special_mode.sh 到 手機 /system/bin/ 目錄下
+
+2.運行腳本Aging8953.sh &，在後面加一個“&”，拔掉usb時Aging腳本不會停止
+adb root
+adb shell
+/system/bin/Aging8953.sh &
+
+3.腳本運行日志保存在/sdcard/camera_sh.log中
+4.由於長時間Aging logcat會被衝掉，所以crash時候，tombstone和當時的logcat會cpoy到/sdcard/camera_sh_log/中
+
