@@ -7,7 +7,8 @@ initAgingBokeh(){
 	LOG "Init bokeh mode open camera"
 	am start com.asus.camera/.CameraApp &
 	sleep 5
-	input tap 770 1815	#switch 
+	input tap 770 1815	#switch
+	sleep 3
 }
 
 
@@ -33,12 +34,12 @@ AgingBokehSwitch(){
 		if [ $mod -eq 2 ]; then
 			LOG "to auto "
 			input tap 770 1815	#auto
-			sleep 2
+			sleep 3
 		fi
 		if [ $mod -eq 4 ]; then
 			LOG "to dfp "
 			input tap 770 1815	#dfp
-			sleep 3
+			sleep 4
 		fi
 		if [ $mod -eq 6 ]; then
 			sleep 6
@@ -55,9 +56,9 @@ AgingBokehSwitch(){
 		#fi
 		if [ $mod -eq 9 ]; then
 			LOG "to exitCamera"
-		#	input keyevent KEYCODE_BACK	#exitCamera
-		#	sleep 3
-		#	initAgingBokeh #ret bokeh
+			input keyevent KEYCODE_BACK	#exitCamera
+			sleep 3
+			initAgingBokeh #ret bokeh
 		fi
 
 		let i+=1

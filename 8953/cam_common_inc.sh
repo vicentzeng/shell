@@ -170,7 +170,7 @@ Check_Capture_Suc_Clear(){
 }
 
 storeLog(){
-	tombstone_num=$(ls /data/tombstones/ | wc -l)
+	tombstone_num=$(ls /data/tombstones/|grep tombstone_|wc -l)
 	if [ $tombstone_num -gt 0 ]; then
 		let tombstone_times+=1
 		LOG "Backtrace detected! Coping tombstone&logcat to /sdcard/camera_sh_log/tombstone$tombstone_times"
