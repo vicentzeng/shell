@@ -87,13 +87,23 @@ AgingBokehCapture(){
 }
 
 ######################Aging Shell begin#####################
+common_init
+
 if [ $# -eq 1 ]; then
+	if [ $1 = "-h" ]; then
+		echo "arg:\n [-h] help\n [stop]\n [single]:auto single\n [bsignal]:bokeh single"
+		exit
+	fi
 	if [ $1 = "stop" ]; then
 		echo 0 > /sdcard/shell_run
 		exit
 	fi
 	if [ $1 = "single" ]; then
 		Aging_SignalCapture
+		exit
+	fi
+	if [ $1 = "bsingle" ]; then
+		AgingBokehCapture
 		exit
 	fi
 	#if [ $1 = "dump" ]; then
@@ -116,8 +126,6 @@ else
 
 fi
 
-
-common_init
 #AgingBokehCapture
 AgingBokehSwitch
 

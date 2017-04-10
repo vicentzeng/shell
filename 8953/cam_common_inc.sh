@@ -178,14 +178,14 @@ storeLog(){
 		mkdir -p /sdcard/camera_sh_log/tombstone$tombstone_times/tombstone
 		mkdir -p /sdcard/camera_sh_log/tombstone$tombstone_times/logcat
 		mv /data/tombstones/* /sdcard/camera_sh_log/tombstone$tombstone_times/tombstone/
-		mv /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
-		mv /data/logcat_log/logcat.txt /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
+		cp /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
+		cp /data/logcat_log/logcat.txt /sdcard/camera_sh_log/tombstone$tombstone_times/logcat/
 	else
 		let commone_fail_times+=1
 		LOG "Common fail detected! Coping logcat to /sdcard/camera_sh_log/logcat$commone_fail_times"
 		mkdir -p /sdcard/camera_sh_log/logcat$commone_fail_times
-		mv /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/logcat$commone_fail_times
-		mv /data/logcat_log/logcat.txt /sdcard/camera_sh_log/logcat$commone_fail_times
+		cp /data/logcat_log/logcat.txt.01 /sdcard/camera_sh_log/logcat$commone_fail_times/
+		cp /data/logcat_log/logcat.txt /sdcard/camera_sh_log/logcat$commone_fail_times/
 	fi
 }
 
