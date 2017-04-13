@@ -55,7 +55,7 @@ restartAsusCamera(){
 	if [ $is_restart_camera = 1 ]; then
 		am force-stop com.asus.camera
 		LOG "Restart(am force-stop) AsusCamera"
-		$ReInitModeCall
+		$ReInitModeCall	#restart in this function
 		sleep 2
 		IsAsusCamera_Run_Preview_ForeHead
 		if [ $? = 1 ]; then
@@ -95,11 +95,10 @@ IsAsusCamera_Run_Preview_ForeHead(){
 MemInfo(){
 	if [ $is_dump_mediaserver_ps_info = 1 ]; then
 		#echo "$1 dumpsys meminfo: $(dumpsys meminfo mediaserver|grep TOTAL:)">>/sdcard/camera_sh.log
-		LOG "dumpsys meminfo: $(dumpsys meminfo|grep "RAM")"
+		LOG "dumpsys meminfo: $(dumpsys meminfo|grep "RAM"|grep "Lost RAM:")"
 
 		#echo "$1 top meminfo: $(top -n 1|grep  "medias")"
-		#echo "$1 top meminfo: $(top -n 1|grep  "camera")"
-		#echo "$1 top meminfo: $(top -n 1|grep medias)">>/sdcard/camera_sh.log
+		LOG "$1 top meminfo: $(top -n 1|grep  "asus.camera")"
 		
 		LOG "$1 ps_meminfo: $(ps|grep "medias")"
 		#echo "$1 ps_meminfo: $(ps|grep com.asus.atd.devicecheck)">>/sdcard/camera_sh.log
@@ -129,6 +128,12 @@ CPU_info_monitor(){
 	LOG "CPU max_freq:$(cat $max_freq_path) cur_freq:$(cat $cur_freq_path)"
 }
 
+CameraAppInfo_monitor(){
+	is_cameraapp_run=$(top -n 1 -m 20 -s cpu -d 0|grep "com.asus.camera"|wc -l) #獲取一次cpu消耗 top20的程序列表，中是否有asuscamera
+	if [ $is_cameraapp_run = 0 ]; then
+		LOG "AsusCamera not Run"
+	fi
+}
 Check_Capture_Suc_Clear(){
 	#check is capturing,连续拍照失败5次，则重新打开AsusCamera App
 	Update_Pid_info asus.camera
@@ -139,7 +144,7 @@ Check_Capture_Suc_Clear(){
 		if [ $? = 0 ]; then
 			let capture_fail_num+=1;
 				LOG "/********Capture Miss	happened $capture_fail_num次 *******/"
-				if [ $capture_fail_num -eq 3 ]; then
+				if [ $capture_fail_num -eq 5 ]; then
 					#restart?
 					restartAsusCamera
 					capture_fail_num=0;
@@ -148,6 +153,7 @@ Check_Capture_Suc_Clear(){
 		else
 			LOG "/********CameraApp unexpected goto Background *******/"
 			restartAsusCamera
+			capture_fail_num=0;
 		fi
 		ret=1
 	else
@@ -189,6 +195,31 @@ storeLog(){
 	fi
 }
 
+touchToOpenCameraApp(){
+	input keyevent KEYCODE_HOME
+	sleep 3
+	input tap  980 1820	#touch CameraApp Icon
+}
+
+Exit_StorageFull(){
+	storage_info=$(df /data|grep "/data")
+	storage_info=$(echo ${storage_info% *})
+	storage_info=$(echo ${storage_info##*G})
+	storage_m_num=$(echo $storage_info|grep "M"|wc -l)
+	if [ $storage_m_num -gt 0 ]; then
+		LOG "Storage is less than 1G! exit"
+		echo 0 > /sdcard/shell_run
+		exit
+	fi
+}
+
+Device_Info_Monitor(){
+	CameraAppInfo_monitor
+	#CPU_info_monitor
+	#MemInfo
+	Exit_StorageFull
+}
+
 common_init(){
 LOG "Aging Begin"
 mkdir -p /sdcard/media_maps
@@ -198,9 +229,10 @@ capture_num=0
 capture_fail_num=0
 retry_check=0
 picture_num_pre=$(ls /sdcard/DCIM/Camera | wc -l);
-ReInitModeCall="am start com.asus.camera/.CameraApp"
+ReInitModeCall=touchToOpenCameraApp
 
 #globle camera info
+is_cameraapp_run=1
 camera_app_pid=0
 camera_app_oom_score=0
 camera_app_utime=0
@@ -209,7 +241,7 @@ camera_app_utime=0
 commone_fail_times=0
 tombstone_times=$(ls /data/tombstones/ | wc -l);
 #config
-is_dump_mediaserver_ps_info=0
+is_dump_mediaserver_ps_info=1
 is_dump_mediaserver_maps=0
 is_restart_camera=1
 is_clear_pic=0

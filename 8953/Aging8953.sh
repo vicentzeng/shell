@@ -5,10 +5,11 @@ defalut_log_path="/sdcard/camera_sh.log"
 
 initAgingBokeh(){
 	LOG "Init bokeh mode open camera"
-	am start com.asus.camera/.CameraApp &
-	sleep 5
-	input tap 770 1815	#switch
+	#am start com.asus.camera/.CameraApp &
+	touchToOpenCameraApp
 	sleep 3
+	input tap 770 1715	#switch
+	sleep 2
 }
 
 
@@ -21,33 +22,37 @@ AgingBokehSwitch(){
 	while [ $i -gt 0 ] 
 	do 
 		#切换拍照
-		LOG "第$i次	"
-		CPU_info_monitor
+		LOG "第$i次"
+		Device_Info_Monitor
 		input tap 540 960	#focus
 		sleep 1		
 		Capture_8953
 		sleep 2
-		Check_Capture_Suc_Clear $capture_num
+		Check_Capture_Suc_Clear
 		#sleep 1
 
 		((mod=$i%10))
 		if [ $mod -eq 2 ]; then
-			LOG "to auto "
-			input tap 770 1815	#auto
+			LOG "to auto"
+			input tap 770 1715	#auto
 			sleep 3
 		fi
 		if [ $mod -eq 4 ]; then
-			LOG "to dfp "
-			input tap 770 1815	#dfp
+			LOG "to dfp"
+			input tap 770 1715	#dfp
 			sleep 4
 		fi
 		if [ $mod -eq 6 ]; then
 			sleep 6
-			input tap 1000 1820	#miniview
+			input tap 1000 1720	#miniview
+			LOG "to miniView"
 			sleep 2
-			LOG "to miniView "
 			input keyevent KEYCODE_BACK
-			sleep 5
+			LOG "return to dfp"
+			sleep 1
+			CameraAppInfo_monitor
+			sleep 4
+			CameraAppInfo_monitor
 		fi
 		#if [ $mod -eq 5 ]; then
 			#LOG "to dfp "
@@ -58,6 +63,7 @@ AgingBokehSwitch(){
 			LOG "to exitCamera"
 			input keyevent KEYCODE_BACK	#exitCamera
 			sleep 3
+			LOG "reopen to dfp"
 			initAgingBokeh #ret bokeh
 		fi
 
@@ -80,7 +86,7 @@ AgingBokehCapture(){
 		sleep 1		
 		Capture_8953
 		sleep 2
-		Check_Capture_Suc_Clear $capture_num
+		Check_Capture_Suc_Clear
 		sleep 1
 		let i+=1
 	done
@@ -111,7 +117,7 @@ if [ $# -eq 1 ]; then
 	sleep 1
 	setenforce 0
 	LOG "getenforce: $(getenforce)"
-	setprop persist.camera.bokehmode.dump 2
+	setprop persist.camera.bokehmode.dump 0
 	LOG "persist.camera.bokehmode.dump: $(getprop persist.camera.bokehmode.dump)"
 	#fi
 else
