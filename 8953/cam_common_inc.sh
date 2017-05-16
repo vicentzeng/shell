@@ -10,12 +10,46 @@ LOG(){
 	fi
 }
 
+LOGI(){
+	echo "$(date +%m-%d\ %H:%M:%S) $1"
+	#write log to file
+	if [ $defalut_log_path ]; then
+		echo "$(date +%m-%d\ %H:%M:%S) $1">>$defalut_log_path
+	else
+		if [ $2 ]; then
+			echo "$(date +%m-%d\ %H:%M:%S) $1">>$2
+		fi
+	fi
+}
+
+
+TryCaptureUtilSuc(){
+	tryTime=0
+	while [ $tryTime -le 5 ] 
+	do 
+		input tap 540 960	#focus
+		sleep 1		
+		Capture_8953
+		sleep 2
+		Check_Capture_Suc_Clear
+		if [ $? -eq 0 ]; then
+			LOGI "TryCapture_8953 suc."
+			return;
+		fi
+		if [ $tryTime -eq 4 ]; then
+			LOGI "TryCapture_8953 fail."
+			return;
+		fi
+		sleep 1
+		let tryTime+=1
+	done
+}
 
 Panel_Check(){
 	#判断551/550 ret=0:550 ret=1:551
 	panel=0;
 	cat /proc/aphd|grep -q 0
-		if [ $? -eq 0 ]; then
+	if [ $? -eq 0 ]; then
 		panel=1;
 	fi
 	return $panel
@@ -47,6 +81,19 @@ Update_Pid_info(){
 	return $m_pid
 }
 
+#judged by utime change or not
+#IsAsusCamera_Run_Preview_ForeHead(){
+#	Update_Pid_info com.asus.camera
+#	utime_beg=$camera_app_utime#
+#	sleep 3
+#	Update_Pid_info com.asus.camera
+#	utime_end=$camera_app_utime
+#	if [ $utime_end -gt $utime_beg ]; then
+#		return 0
+#	else
+#		return 1;
+#	fi
+#}
 
 restartAsusCamera(){
 	#save log
@@ -57,9 +104,10 @@ restartAsusCamera(){
 		LOG "Restart(am force-stop) AsusCamera"
 		$ReInitModeCall	#restart in this function
 		sleep 2
-		IsAsusCamera_Run_Preview_ForeHead
-		if [ $? = 1 ]; then
+		is_cameraapp_run=$(top -n 1 -m 20 -s cpu -d 0|grep "com.asus.camera"|wc -l)
+		if [ $is_cameraapp_run = 0 ]; then
 			LOG "Restart fail kill all daemon, mediaserver && AsusCamera"
+			Update_Pid_info com.asus.camera
 			kill -9 $camera_app_pid
 			Update_Pid_info mediaserver
 			kill -9 $camera_app_pid
@@ -74,20 +122,6 @@ restartAsusCamera(){
 	else
 		LOG "\n\n\n=============Asuscamera Run unnormally! Stop Script!!!============\n\n\n"
 		exit
-	fi
-}
-
-#judged by utime change or not
-IsAsusCamera_Run_Preview_ForeHead(){
-	Update_Pid_info com.asus.camera
-	utime_beg=$camera_app_utime
-	sleep 3
-	Update_Pid_info com.asus.camera
-	utime_end=$camera_app_utime
-	if [ $utime_end -gt $utime_beg ]; then
-		return 0
-	else
-		return 1;
 	fi
 }
 
@@ -132,6 +166,10 @@ CameraAppInfo_monitor(){
 	is_cameraapp_run=$(top -n 1 -m 20 -s cpu -d 0|grep "com.asus.camera"|wc -l) #獲取一次cpu消耗 top20的程序列表，中是否有asuscamera
 	if [ $is_cameraapp_run = 0 ]; then
 		LOG "AsusCamera not Run"
+	is_miniview_run=$(dumpsys activity|grep Run|grep com.asus.miniviewer|wc -l)	#獲取當前運行的activity
+	if [ $is_miniview_run = 1 ]; then
+		LOG "Miniviewer still Running"
+	fi
 	fi
 }
 Check_Capture_Suc_Clear(){
@@ -140,26 +178,33 @@ Check_Capture_Suc_Clear(){
 	picture_num_cur=$(ls /sdcard/DCIM/Camera | wc -l);
 	ret=0
 	if [ $picture_num_pre = $picture_num_cur ]; then
-		IsAsusCamera_Run_Preview_ForeHead
-		if [ $? = 0 ]; then
+		is_cameraapp_run=$(top -n 1 -m 20 -s cpu -d 0|grep "com.asus.camera"|wc -l)
+		if [ $is_cameraapp_run = 1 ]; then
 			let capture_fail_num+=1;
 				LOG "/********Capture Miss	happened $capture_fail_num次 *******/"
-				if [ $capture_fail_num -eq 5 ]; then
+				if [ $capture_fail_num -eq 4 ]; then
 					#restart?
 					restartAsusCamera
-					capture_fail_num=0;
+					#capture_fail_num=0;
+				fi
+				if [ $continuousInitTimes -gt 5 ]; then
+					#exit?
+					LOG "Keep restart fail 5 times. Camera can't restart normal. Exit Aging!"
+					exit
+					#capture_fail_num=0;
 				fi
 				sleep 1
 		else
 			LOG "/********CameraApp unexpected goto Background *******/"
 			restartAsusCamera
-			capture_fail_num=0;
+			#capture_fail_num=0;
 		fi
 		ret=1
 	else
 		picture_num_pre=$picture_num_cur
 		let capture_num+=1;
 		capture_fail_num=0;
+		continuousInitTimes=0;
 		LOG "Capture Suc!	成功拍攝$capture_num次 已拍摄$picture_num_cur张"
 		if [ $is_clear_pic = 1 ]; then
 			rm -rf /sdcard/DCIM/Camera/*
@@ -176,6 +221,7 @@ Check_Capture_Suc_Clear(){
 }
 
 storeLog(){
+	Crash_Reason
 	tombstone_num=$(ls /data/tombstones/|grep tombstone_|wc -l)
 	if [ $tombstone_num -gt 0 ]; then
 		let tombstone_times+=1
@@ -220,6 +266,16 @@ Device_Info_Monitor(){
 	Exit_StorageFull
 }
 
+Crash_Reason(){
+	sof_count=$(cat /data/logcat_log/logcat.txt|grep -i "SOF fre"|wc -l)
+	if [ $sof_count -gt 0 ]; then
+		let sof_times+=1
+		LOG "SOF detected:$sof_times selinux:$(getenforce)"
+		LOG "SOF_dump removed:$(ll /data/misc/camera/sof_freeze_dump.txt)"
+		rm /data/misc/camera/sof_freeze_dump.txt
+	fi
+}
+
 common_init(){
 LOG "Aging Begin"
 mkdir -p /sdcard/media_maps
@@ -227,6 +283,7 @@ echo 1 > /sdcard/shell_run
 mkdir -p /sdcard/camera_sh_log
 capture_num=0
 capture_fail_num=0
+continuousInitTimes=0
 retry_check=0
 picture_num_pre=$(ls /sdcard/DCIM/Camera | wc -l);
 ReInitModeCall=touchToOpenCameraApp
@@ -237,9 +294,10 @@ camera_app_pid=0
 camera_app_oom_score=0
 camera_app_utime=0
 
-#record
+#fail info
 commone_fail_times=0
 tombstone_times=$(ls /data/tombstones/ | wc -l);
+sof_times=0
 #config
 is_dump_mediaserver_ps_info=1
 is_dump_mediaserver_maps=0

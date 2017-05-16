@@ -5,9 +5,12 @@ defalut_log_path="/sdcard/camera_sh.log"
 
 initAgingBokeh(){
 	LOG "Init bokeh mode open camera"
+	let continuousInitTimes+=1
 	#am start com.asus.camera/.CameraApp &
 	touchToOpenCameraApp
+	CameraAppInfo_monitor
 	sleep 3
+	LOGI "touch DFP mode"
 	input tap 770 1715	#switch
 	sleep 2
 }
@@ -22,10 +25,10 @@ AgingBokehSwitch(){
 	while [ $i -gt 0 ] 
 	do 
 		#切换拍照
-		LOG "第$i次"
 		Device_Info_Monitor
 		input tap 540 960	#focus
-		sleep 1		
+		sleep 1
+		LOG "第$i次"	
 		Capture_8953
 		sleep 2
 		Check_Capture_Suc_Clear
