@@ -34,18 +34,18 @@ AgingBokehSwitch(){
 		Check_Capture_Suc_Clear
 		#sleep 1
 
-		((mod=$i%10))
-		if [ $mod -eq 2 ]; then
-			LOG "to auto"
-			input tap 770 1715	#auto
-			sleep 3
-		fi
-		if [ $mod -eq 4 ]; then
-			LOG "to dfp"
-			input tap 770 1715	#dfp
-			sleep 4
-		fi
-		if [ $mod -eq 6 ]; then
+		((mod=$i%2))
+		#if [ $mod -eq 2 ]; then
+			#LOG "to auto"
+			#input tap 770 1715	#auto
+			#sleep 3
+		#fi
+		#if [ $mod -eq 4 ]; then
+		#	LOG "to dfp"
+		#	input tap 770 1715	#dfp
+		#	sleep 4
+		#fi
+		if [ $mod -eq 1 ]; then
 			sleep 6
 			input tap 1000 1720	#miniview
 			LOG "to miniView"
@@ -62,13 +62,13 @@ AgingBokehSwitch(){
 			#input tap 770 1815	#dfp
 			#sleep 3
 		#fi
-		if [ $mod -eq 9 ]; then
-			LOG "to exitCamera"
-			input keyevent KEYCODE_BACK	#exitCamera
-			sleep 3
-			LOG "reopen to dfp"
-			initAgingBokeh #ret bokeh
-		fi
+		#if [ $mod -eq 9 ]; then
+		#	LOG "to exitCamera"
+		#	input keyevent KEYCODE_BACK	#exitCamera
+		#	sleep 3
+		#	LOG "reopen to dfp"
+		#	initAgingBokeh #ret bokeh
+		#fi
 
 		let i+=1
 	done

@@ -62,11 +62,15 @@ Panel_Check(){
 Update_Pid_info(){
 	camera_app_pid=0
 	m_pid=0
-		ps_str=$(ps|grep $1)
-		m_pid=${ps_str:10:5}	#sub string
-		m_pid=${m_pid/" "/""}	#delete space
-		m_pid=${m_pid/" "/""}	#delete space
-		#echo "pid:$m_pid"
+	if [ $(ps|grep $1|wc -l) -eq 0 ]; then
+		LOG "$1 not run, get PID fail"
+		return 0
+	fi
+
+	ps_str=$(ps|grep $1)
+	m_pid=${ps_str:10:5}	#sub string
+	m_pid=${m_pid/" "/""}	#delete space
+	m_pid=${m_pid/" "/""}	#delete space
 	if [ $m_pid -gt 0 ]; then
 		camera_app_pid=$m_pid
 		ps_stat_str=$(cat /proc/$camera_app_pid/stat)
@@ -107,12 +111,19 @@ restartAsusCamera(){
 		is_cameraapp_run=$(top -n 1 -m 20 -s cpu -d 0|grep "com.asus.camera"|wc -l)
 		if [ $is_cameraapp_run = 0 ]; then
 			LOG "Restart fail kill all daemon, mediaserver && AsusCamera"
+			camera_app_pid=0
 			Update_Pid_info com.asus.camera
+			if [ $m_pid -gt 0 ]; then
 			kill -9 $camera_app_pid
+			fi
 			Update_Pid_info mediaserver
+			if [ $m_pid -gt 0 ]; then
 			kill -9 $camera_app_pid
+			fi
 			Update_Pid_info mm-qcamera-daemon
+			if [ $m_pid -gt 0 ]; then
 			kill -9 $camera_app_pid
+			fi
 			sleep 5
 			#start again
 			$ReInitModeCall
@@ -248,12 +259,13 @@ touchToOpenCameraApp(){
 }
 
 Exit_StorageFull(){
-	storage_info=$(df /data|grep "/data")
-	storage_info=$(echo ${storage_info% *})
-	storage_info=$(echo ${storage_info##*G})
-	storage_m_num=$(echo $storage_info|grep "M"|wc -l)
-	if [ $storage_m_num -gt 0 ]; then
-		LOG "Storage is less than 1G! exit"
+
+	storage_info2=$(dumpsys diskstats|grep "Data-Free")
+	storage_info2=$(echo ${storage_info2%\% free*})
+	storage_info2=$(echo ${storage_info2##* = })
+
+	if [ $storage_info2 = 0 ]; then
+		LOG "Storage is less than 1% Free! exit"
 		echo 0 > /sdcard/shell_run
 		exit
 	fi
@@ -273,6 +285,14 @@ Crash_Reason(){
 		LOG "SOF detected:$sof_times selinux:$(getenforce)"
 		LOG "SOF_dump removed:$(ll /data/misc/camera/sof_freeze_dump.txt)"
 		rm /data/misc/camera/sof_freeze_dump.txt
+	fi
+
+	#search within 60 seconds, cover 2 minuites
+	pre_60s_data=$(date +%m-%d\ %H:%M -d "$(date +%m%d%H)$(($(date +%M)-1))")
+	app_crash=$(cat /data/logcat_log/logcat.txt|grep "$pre_60s_data\|$(date +%m-%d\ %H:%M)"|grep -i "force.*asus.*camera")
+	if [ $app_crash -gt 0 ]; then
+		$((app_crash_times+=1))
+		LOG "App_Crash detected:$app_crash_times within 2 minuites"
 	fi
 }
 
@@ -298,6 +318,7 @@ camera_app_utime=0
 commone_fail_times=0
 tombstone_times=$(ls /data/tombstones/ | wc -l);
 sof_times=0
+app_crash_times=0
 #config
 is_dump_mediaserver_ps_info=1
 is_dump_mediaserver_maps=0
